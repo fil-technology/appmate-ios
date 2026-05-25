@@ -111,5 +111,12 @@ extension SafariPresenter {
             self?.presented = nil
         }
     }
+
+    /// Reachable from the public ``RetentionFlow/dismissFlow()`` entry
+    /// point. Same logic as the fileprivate version above; split only so
+    /// the internal callsite stays tightly scoped.
+    func dismissIfPresentedPublic() {
+        dismissIfPresented()
+    }
 }
 #endif

@@ -12,18 +12,48 @@ final class DeepLinkHandlerTests: XCTestCase {
         XCTAssertEqual(link.sessionId, "sid_123")
     }
 
-    func testParsesOpenPremium() throws {
+    func testParsesOpenPremiumWithoutPaywallId() throws {
         let url = URL(string: "myapp://retention-flow/action?type=open_premium&session_id=sid_x")!
         let link = try XCTUnwrap(
             RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp")
         )
-        XCTAssertEqual(link.action, .openPremium)
+        XCTAssertEqual(link.action, .openPremium(paywallId: nil))
     }
 
-    func testParsesOpenSupport() throws {
+    func testParsesOpenPremiumWithPaywallId() throws {
+        let url = URL(string: "myapp://retention-flow/action?type=open_premium&paywall_id=cancel_save_monthly&session_id=sid")!
+        let link = try XCTUnwrap(
+            RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp")
+        )
+        XCTAssertEqual(link.action, .openPremium(paywallId: "cancel_save_monthly"))
+    }
+
+    func testParsesOpenSupportWithoutContext() throws {
         let url = URL(string: "myapp://retention-flow/action?type=open_support&session_id=sid")!
         let link = try XCTUnwrap(RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp"))
-        XCTAssertEqual(link.action, .openSupport)
+        XCTAssertEqual(link.action, .openSupport(topic: nil, message: nil))
+    }
+
+    func testParsesOpenSupportWithTopicAndMessage() throws {
+        let url = URL(string: "myapp://retention-flow/action?type=open_support&topic=technical_issue&message=Crashes%20on%20launch&session_id=sid")!
+        let link = try XCTUnwrap(RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp"))
+        XCTAssertEqual(
+            link.action,
+            .openSupport(topic: "technical_issue", message: "Crashes on launch")
+        )
+    }
+
+    func testParsesOpenOffer() throws {
+        let url = URL(string: "myapp://retention-flow/action?type=open_offer&offer_id=ios_20_off_3_months&session_id=sid")!
+        let link = try XCTUnwrap(RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp"))
+        XCTAssertEqual(link.action, .openOffer(id: "ios_20_off_3_months"))
+    }
+
+    func testRejectsOpenOfferWithoutId() {
+        let url = URL(string: "myapp://retention-flow/action?type=open_offer&session_id=sid")!
+        XCTAssertNil(
+            RetentionFlowDeepLinkHandler.parse(url, expectedScheme: "myapp")
+        )
     }
 
     func testParsesOpenFeature() throws {

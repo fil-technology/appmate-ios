@@ -45,24 +45,30 @@ public enum RetentionFlowDeepLinkHandler {
 
         guard let type else { return nil }
 
+        func q(_ name: String) -> String? {
+            items.first(where: { $0.name == name })?.value
+        }
+
         let action: RetentionFlowAction
         switch type {
         case "return_to_app":
             action = .returnToApp
         case "open_premium":
-            action = .openPremium
+            action = .openPremium(paywallId: q("paywall_id"))
         case "open_support":
-            action = .openSupport
+            action = .openSupport(topic: q("topic"), message: q("message"))
         case "open_feature":
-            guard let featureId = items.first(where: { $0.name == "feature_id" })?.value,
-                  !featureId.isEmpty
+            guard let featureId = q("feature_id"), !featureId.isEmpty
             else { return nil }
             action = .openFeature(id: featureId)
+        case "open_offer":
+            guard let offerId = q("offer_id"), !offerId.isEmpty
+            else { return nil }
+            action = .openOffer(id: offerId)
         case "manage_subscription":
             action = .manageSubscription
         case "external_url":
-            guard let raw = items.first(where: { $0.name == "url" })?.value,
-                  let url = URL(string: raw)
+            guard let raw = q("url"), let url = URL(string: raw)
             else { return nil }
             action = .externalURL(url)
         case "none":

@@ -71,8 +71,14 @@ RetentionFlow.startCancelFlow(
     ]
 ) { link in
     switch link.action {
-    case .openPremium:        navigateToPaywall()
-    case .openSupport:        openSupportInbox()
+    case .openPremium(let paywallId):
+        navigateToPaywall(variant: paywallId)
+    case .openOffer(let offerId):
+        // App decides how to present the offer: StoreKit promotional offer,
+        // RevenueCat offering, or a custom paywall keyed by offerId.
+        OfferRouter.present(offerId)
+    case .openSupport(let topic, let message):
+        openSupportInbox(topic: topic, prefilled: message)
     case .openFeature(let id): openFeature(id)
     case .returnToApp:        break // user just returns to current screen
     case .manageSubscription:
@@ -118,8 +124,9 @@ Tries the in-app StoreKit 2 sheet first; falls back to opening `https://apps.app
 | Action | Triggered when… |
 | --- | --- |
 | `.returnToApp` | Reason response → "Open app" |
-| `.openPremium` | Reason response → "See options" / paywall route |
-| `.openSupport` | Reason response → "Send feedback" / "Contact support" |
+| `.openPremium(paywallId:)` | Reason response → paywall / save-flow route. `paywallId` is set when the dashboard targets a specific variant. |
+| `.openOffer(id:)` | Reason response → "Claim offer". The id is opaque — your app maps it to a StoreKit promo / RevenueCat offering / custom paywall. |
+| `.openSupport(topic:message:)` | Reason response → "Send feedback" / "Contact support". Both params optional. |
 | `.openFeature(id:)` | Reason response → "Open tutorial" (feature id from dashboard) |
 | `.manageSubscription` | Any time the user picks the always-visible Manage button |
 | `.externalURL(URL)` | Custom external link configured in the dashboard |

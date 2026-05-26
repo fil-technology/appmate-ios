@@ -1,8 +1,8 @@
 # AppMate — iOS SDK
 
-Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted pre-cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
+Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
 
-> **Status:** v0.1.0 — pre-cancel flow only. Onboarding, trial-expiry, and win-back flows are on the roadmap and will land as additive APIs.
+> **Status:** v0.1.0 — cancel flow only. Onboarding, trial-expiry, and win-back flows are on the roadmap and will land as additive APIs.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ RetentionFlow.configure(
 )
 ```
 
-## Start the pre-cancel flow
+## Start the cancel flow
 
 When the user taps your **Cancel Subscription** button, call:
 

@@ -38,7 +38,7 @@ public enum RetentionFlow {
 
     // MARK: Starting the cancel flow
 
-    /// Starts a pre-cancel flow session and presents the hosted UI in an
+    /// Starts a cancel flow session and presents the hosted UI in an
     /// `SFSafariViewController`. The `onAction` callback fires once the user
     /// completes the flow with one of the supported actions; the SDK
     /// auto-dismisses the Safari view at that point.

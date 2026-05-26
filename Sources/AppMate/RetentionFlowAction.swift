@@ -1,7 +1,7 @@
 import Foundation
 
 /// Action returned to the host app when the user closes the AppMate
-/// pre-cancel flow via a deep link.
+/// cancel flow via a deep link.
 ///
 /// The wire format (parsed from `myapp://retention-flow/action?type=...`) and
 /// the supported set are defined in the AppMate service repo at

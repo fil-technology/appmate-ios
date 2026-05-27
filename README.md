@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
 
-> **Status:** v0.1.0 — cancel flow only. Onboarding, trial-expiry, and win-back flows are on the roadmap and will land as additive APIs.
+> **Status:** v0.2.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, and contact flows are fully supported via Safari view presentation or custom deep link handling.
 
 ## Requirements
 
@@ -18,12 +18,12 @@ In Xcode → **File → Add Package Dependencies…** → paste:
 https://github.com/fil-technology/appmate-ios
 ```
 
-Pin to `from: "0.1.0"`. Add the `AppMate` product to your app target.
+Pin to `from: "0.2.0"`. Add the `AppMate` product to your app target.
 
 Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.1.0")
+.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.2.0")
 ```
 
 ## Register your URL scheme

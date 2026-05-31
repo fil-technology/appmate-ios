@@ -57,6 +57,31 @@ extension RetentionFlow {
         return try? await client.referralCode(userId: userId).shareMessage
     }
 
+    /// The user's short, human-readable referral **code**, formatted for
+    /// display (e.g. `"K7Q4-R9XP"`). Show it in a copyable "Your code" chip on
+    /// your Invite screen so people can share the code directly, not just the
+    /// link. A friend redeems it with ``redeemReferral(code:userId:anonymousId:)``.
+    /// Returns `nil` if the program isn't published or the call fails.
+    public static func referralShareCode(userId: String) async -> String? {
+        guard let config = config else {
+            assertionFailure(ConfigurationError.notConfigured.localizedDescription)
+            return nil
+        }
+        let client = SessionClient(config: config)
+        guard let resp = try? await client.referralCode(userId: userId) else {
+            return nil
+        }
+        // Prefer the server's formatted form; fall back to grouping locally so
+        // this keeps working against older backends that only return `code`.
+        return resp.displayCode ?? formatShareCode(resp.code)
+    }
+
+    /// Group an 8-char code as `XXXX-XXXX` for display; pass anything else
+    /// through unchanged.
+    private static func formatShareCode(_ code: String) -> String {
+        code.count == 8 ? "\(code.prefix(4))-\(code.suffix(4))" : code
+    }
+
     /// Claim any referral rewards the user has newly earned from friends who
     /// installed. Call on app launch (and after sign-up). Returns `.weeks == 0`
     /// when nothing is owed. The server marks rewards claimed atomically, so a

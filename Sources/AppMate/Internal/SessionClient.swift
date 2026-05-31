@@ -262,6 +262,9 @@ struct SessionClient {
     }
     struct ReferralCodeResponse: Decodable {
         let code: String
+        // Pre-formatted display form (e.g. "K7Q4-R9XP"). Optional so decoding
+        // still succeeds against older backends that only return `code`.
+        let displayCode: String?
         let shareUrl: String
         let shareMessage: String?
         let referrerWeeks: Int?

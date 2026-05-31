@@ -97,6 +97,45 @@ extension RetentionFlow {
         return ReferralRewards(weeks: resp.weeksOwed, newReferrals: resp.newReferrals)
     }
 
+    /// Redeem a referral straight from an inbound deep-link URL — the installed-
+    /// app fast path. When a friend taps an invite link and your app is already
+    /// installed, the AppMate invite page opens your app with a URL shaped like
+    /// `yourscheme://retention-flow/action?type=referral&code=…`. Pass that URL
+    /// here and the SDK pulls the code and redeems it (no clipboard, no paste
+    /// banner). Returns `nil` if the URL isn't an AppMate referral link, so it's
+    /// safe to funnel every inbound URL through it.
+    ///
+    /// ```swift
+    /// .onOpenURL { url in
+    ///     Task {
+    ///         if let attr = await RetentionFlow.redeemReferralFromURL(url, userId: user.id),
+    ///            let reward = attr.refereeReward {
+    ///             grantFreeWeeks(reward.weeks)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    public static func redeemReferralFromURL(
+        _ url: URL,
+        userId: String? = nil,
+        anonymousId: String? = nil
+    ) async -> ReferralAttribution? {
+        guard
+            let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            comps.host == "retention-flow",
+            comps.path == "/action",
+            comps.queryItems?.first(where: { $0.name == "type" })?.value == "referral",
+            let code = comps.queryItems?
+                .first(where: { $0.name == "code" })?.value,
+            !code.isEmpty
+        else { return nil }
+        return await redeemReferral(
+            code: code,
+            userId: userId,
+            anonymousId: anonymousId
+        )
+    }
+
     /// Redeem a short, human-readable referral **code** the friend typed in (or
     /// pasted via a Paste button) — no clipboard read, so this shows **no** iOS
     /// paste banner. Binds the install to the referrer and returns the new

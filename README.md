@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
 
-> **Status:** v0.6.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
+> **Status:** v0.7.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
 
 ## Requirements
 
@@ -200,10 +200,27 @@ if let attr = await RetentionFlow.redeemReferral(code: enteredCode, userId: user
     FreeAccessManager.shared.grantReferralWeeks(reward.weeks)
 }
 
+// 2c. New user, ALREADY installed — the invite page opens your app via your
+//     URL scheme with the code; redeem it from the inbound URL (no prompt):
+.onOpenURL { url in
+    Task {
+        if let attr = await RetentionFlow.redeemReferralFromURL(url, userId: user.id),
+           let reward = attr.refereeReward {
+            FreeAccessManager.shared.grantReferralWeeks(reward.weeks)
+        }
+    }
+}
+
 // 3. Referrer — on every launch, claim weeks earned from friends who installed:
 let earned = await RetentionFlow.claimReferralRewards(userId: user.id)
 if earned.weeks > 0 { FreeAccessManager.shared.grantReferralWeeks(earned.weeks) }
 ```
+
+> The invite page tries to open your app (via the URL scheme AppMate has on
+> file) and falls back to the App Store if it isn't installed. So: **installed**
+> users get instant attribution from the deep link (2c); **new** users install,
+> then attribute via the clipboard handoff (2a) or a typed code (2b). Register
+> your scheme in the AppMate app settings and handle it with `.onOpenURL`.
 
 You get two redemption paths: the deferred clipboard handoff (`attributeReferral`, shows the iOS paste banner — call it at a natural first-launch moment) and the typed-code path (`redeemReferral(code:)`, no clipboard, no banner). `claimReferralRewards` returns each owed week exactly once (the server marks them claimed atomically) and respects the program's lifetime cap.
 

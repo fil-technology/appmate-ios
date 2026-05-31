@@ -72,6 +72,42 @@ extension RetentionFlow {
         return ReferralRewards(weeks: resp.weeksOwed, newReferrals: resp.newReferrals)
     }
 
+    /// Redeem a short, human-readable referral **code** the friend typed in (or
+    /// pasted via a Paste button) — no clipboard read, so this shows **no** iOS
+    /// paste banner. Binds the install to the referrer and returns the new
+    /// user's reward to grant. Idempotent per referee; returns `nil` on an
+    /// unknown code, a self-referral, or a network failure.
+    ///
+    /// Use this for an "Enter invite code" field. For the deferred clipboard
+    /// handoff (no typing), use ``attributeReferral(userId:anonymousId:)``.
+    public static func redeemReferral(
+        code: String,
+        userId: String? = nil,
+        anonymousId: String? = nil
+    ) async -> ReferralAttribution? {
+        guard let config = config else {
+            assertionFailure(ConfigurationError.notConfigured.localizedDescription)
+            return nil
+        }
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let client = SessionClient(config: config)
+        guard let resp = try? await client.attributeReferral(
+            code: trimmed,
+            userId: userId,
+            anonymousId: anonymousId
+        ) else { return nil }
+
+        let reward = resp.refereeReward.map {
+            ReferralReward(weeks: $0.weeks, label: $0.label)
+        }
+        return ReferralAttribution(
+            alreadyAttributed: resp.alreadyAttributed ?? false,
+            refereeReward: reward
+        )
+    }
+
     #if canImport(UIKit)
     /// Attribute a referred install on first launch. Reads the referral claim
     /// token the invite landing left on the clipboard, binds the install to the

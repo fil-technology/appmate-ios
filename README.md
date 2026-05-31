@@ -172,7 +172,7 @@ Configure the funnel (steps, copy, App Store URL) in the dashboard or via the MC
 
 ## Referral (share with a friend)
 
-Real install-attributed referrals: each user gets a unique link, and a friend who installs earns a reward for both sides — tracked server-side and capped. See the service docs at `/docs/referral`.
+Real install-attributed referrals: each user gets a unique link **and** a short human-readable code (e.g. `K7Q4-R9XP`), and a friend who installs earns a reward for both sides — tracked server-side and capped. See the service docs at `/docs/referral`.
 
 ```swift
 // 1. Share — from your "Invite a friend" button.
@@ -182,8 +182,16 @@ if let url = await RetentionFlow.referralShareLink(userId: user.id) {
 }
 // Don't grant the reward on share — it's earned only when a friend installs.
 
-// 2. New user — on first launch (shows the paste banner):
+// 2a. New user, deferred handoff — on first launch (shows the paste banner):
 if let attr = await RetentionFlow.attributeReferral(userId: user.id),
+   let reward = attr.refereeReward {
+    FreeAccessManager.shared.grantReferralWeeks(reward.weeks)
+}
+
+// 2b. New user, typed code — back an "Enter invite code" field. No clipboard,
+//     so NO paste banner. Codes are short + human-readable and tolerant of
+//     case/dashes:
+if let attr = await RetentionFlow.redeemReferral(code: enteredCode, userId: user.id),
    let reward = attr.refereeReward {
     FreeAccessManager.shared.grantReferralWeeks(reward.weeks)
 }
@@ -193,7 +201,7 @@ let earned = await RetentionFlow.claimReferralRewards(userId: user.id)
 if earned.weeks > 0 { FreeAccessManager.shared.grantReferralWeeks(earned.weeks) }
 ```
 
-The deferred handoff uses the clipboard (like onboarding), so `attributeReferral` shows the iOS paste banner — call it at a natural first-launch moment. `claimReferralRewards` returns each owed week exactly once (the server marks them claimed atomically) and respects the program's lifetime cap.
+You get two redemption paths: the deferred clipboard handoff (`attributeReferral`, shows the iOS paste banner — call it at a natural first-launch moment) and the typed-code path (`redeemReferral(code:)`, no clipboard, no banner). `claimReferralRewards` returns each owed week exactly once (the server marks them claimed atomically) and respects the program's lifetime cap.
 
 ## Demo app
 

@@ -278,7 +278,10 @@ struct SessionClient {
 
     struct ReferralAttributeRequest: Encodable {
         let appSlug: String
-        let claimToken: String
+        // Exactly one of these identifies the invite. Nil optionals are omitted
+        // by the synthesized encoder, so the server sees only the one in use.
+        let claimToken: String?
+        let code: String?
         let userId: String?
         let anonymousId: String?
     }
@@ -293,7 +296,8 @@ struct SessionClient {
     }
 
     func attributeReferral(
-        claimToken: String,
+        claimToken: String? = nil,
+        code: String? = nil,
         userId: String?,
         anonymousId: String?
     ) async throws -> ReferralAttributeResponse {
@@ -302,6 +306,7 @@ struct SessionClient {
             body: ReferralAttributeRequest(
                 appSlug: config.appSlug,
                 claimToken: claimToken,
+                code: code,
                 userId: userId,
                 anonymousId: anonymousId
             ),

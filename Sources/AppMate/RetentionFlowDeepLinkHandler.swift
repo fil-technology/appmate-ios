@@ -71,6 +71,8 @@ public enum RetentionFlowDeepLinkHandler {
             guard let raw = q("url"), let url = URL(string: raw)
             else { return nil }
             action = .externalURL(url)
+        case "onboarding_complete":
+            action = .onboardingComplete(claimToken: q("claim_token"))
         case "none":
             action = .none
         default:

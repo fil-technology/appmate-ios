@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
 
-> **Status:** v0.2.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, and contact flows are fully supported via Safari view presentation or custom deep link handling.
+> **Status:** v0.4.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling.
 
 ## Requirements
 
@@ -130,7 +130,70 @@ Tries the in-app StoreKit 2 sheet first; falls back to opening `https://apps.app
 | `.openFeature(id:)` | Reason response → "Open tutorial" (feature id from dashboard) |
 | `.manageSubscription` | Any time the user picks the always-visible Manage button |
 | `.externalURL(URL)` | Custom external link configured in the dashboard |
+| `.onboardingComplete(claimToken:)` | A web-to-app onboarding funnel finished (handled for you by `startOnboardingFlow`) |
 | `.none` | Future/unknown action — handle defensively |
+
+## Onboarding funnel (web → app)
+
+An **onboarding funnel** runs on the web — typically from an ad or link-in-bio — *before* the user installs: a few quiz/info screens, an email capture, then an App Store handoff. AppMate persists the answers + email and the iOS SDK recovers them on first launch, so the app opens already personalized. No third-party attribution SDK required.
+
+### Deferred handoff (the common case)
+
+The user finishes the funnel in mobile Safari, taps "Download", installs, and opens the app. On first launch (or right after sign-up, once you have a stable `userId`), call:
+
+```swift
+Task {
+    if let result = await RetentionFlow.fetchOnboardingResult(userId: currentUser?.id) {
+        // result.answers: [stepId: OnboardingAnswer], result.email: String?
+        if let goal = result.values(forStep: "goal").first {
+            applyStartingPreset(for: goal)
+        }
+        if let email = result.email {
+            prefillSignup(email: email)
+        }
+    }
+}
+```
+
+Under the hood the funnel leaves a short claim token (prefixed `amob_`) on the clipboard; `fetchOnboardingResult` reads it, redeems it for the answers, and clears it. Reading the clipboard shows the standard iOS paste banner, so call it at a natural "setting things up" moment.
+
+### In-app funnel
+
+To run the same funnel for an already-installed user (e.g. a "redo setup" button), present it in a Safari sheet — the SDK claims the result for you:
+
+```swift
+RetentionFlow.startOnboardingFlow(userId: currentUser.id) { result in
+    guard let result else { return } // user dismissed, or claim failed
+    apply(result)
+}
+```
+
+Configure the funnel (steps, copy, App Store URL) in the dashboard or via the MCP `update_onboarding_draft` tool. See the service docs at `/docs/onboarding`.
+
+## Referral (share with a friend)
+
+Real install-attributed referrals: each user gets a unique link, and a friend who installs earns a reward for both sides — tracked server-side and capped. See the service docs at `/docs/referral`.
+
+```swift
+// 1. Share — from your "Invite a friend" button.
+if let url = await RetentionFlow.referralShareLink(userId: user.id) {
+    let message = await RetentionFlow.referralShareMessage(userId: user.id) ?? ""
+    presentShareSheet(items: [message, url])
+}
+// Don't grant the reward on share — it's earned only when a friend installs.
+
+// 2. New user — on first launch (shows the paste banner):
+if let attr = await RetentionFlow.attributeReferral(userId: user.id),
+   let reward = attr.refereeReward {
+    FreeAccessManager.shared.grantReferralWeeks(reward.weeks)
+}
+
+// 3. Referrer — on every launch, claim weeks earned from friends who installed:
+let earned = await RetentionFlow.claimReferralRewards(userId: user.id)
+if earned.weeks > 0 { FreeAccessManager.shared.grantReferralWeeks(earned.weeks) }
+```
+
+The deferred handoff uses the clipboard (like onboarding), so `attributeReferral` shows the iOS paste banner — call it at a natural first-launch moment. `claimReferralRewards` returns each owed week exactly once (the server marks them claimed atomically) and respects the program's lifetime cap.
 
 ## Demo app
 

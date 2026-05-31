@@ -39,6 +39,15 @@ public enum RetentionFlowAction: Equatable, Sendable {
     /// `UIApplication.shared.open(_:)` or your app's webview.
     case externalURL(URL)
 
+    /// The user finished a web-to-app onboarding funnel that the SDK
+    /// presented in a Safari sheet. `claimToken` (when present) lets you
+    /// recover the captured answers + email via
+    /// ``RetentionFlow/claimOnboarding(claimToken:userId:anonymousId:)``.
+    /// ``RetentionFlow/startOnboardingFlow(userId:anonymousId:attributes:from:onComplete:)``
+    /// handles this for you — you only see it directly if you parse deep
+    /// links yourself.
+    case onboardingComplete(claimToken: String?)
+
     /// Reserved / no-op action.
     case none
 }

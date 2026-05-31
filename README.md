@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
 
-> **Status:** v0.4.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling.
+> **Status:** v0.5.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling. Referral now supports both the deferred clipboard handoff and a typed short code (`redeemReferral(code:)`).
 
 ## Requirements
 

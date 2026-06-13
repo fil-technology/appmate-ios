@@ -31,6 +31,7 @@ struct RetentionFlowDemoApp: App {
 
 struct ContentView: View {
     @State private var lastAction: String = "—"
+    @State private var showWishlist = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -49,11 +50,28 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+
+            // Drop-in native feature-request board. Present it however you like
+            // — here as a sheet; it also works pushed on a stack or in a tab.
+            // Pass your real user id for cross-device vote/comment dedup.
+            Button("Feature wishlist") { showWishlist = true }
+                .buttonStyle(.bordered)
         }
         .padding()
+        .sheet(isPresented: $showWishlist) {
+            NavigationStack {
+                WishlistView(userId: "demo-user-1")
+            }
+        }
         .onOpenURL { url in
             if let link = RetentionFlow.deepLink(from: url) {
                 handle(link)
+            }
+        }
+        .task {
+            // Raw-data API example — build your own UI on top of these calls.
+            if let page = try? await RetentionFlow.wishlistIdeas(sort: .votes) {
+                print("Top idea:", page.items.first?.title ?? "none")
             }
         }
     }

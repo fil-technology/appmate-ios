@@ -317,6 +317,260 @@ struct SessionClient {
         )
     }
 
+    // MARK: Wishlist (feature-request board)
+
+    /// GET a public path with query items and decode the response. Mirror of
+    /// `postJSON` for the read endpoints the wishlist board needs.
+    private func getJSON<Out: Decodable>(
+        path: String,
+        query: [URLQueryItem],
+        as: Out.Type
+    ) async throws -> Out {
+        var components = URLComponents(
+            url: config.baseURL.appendingPathComponent(path),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = query.isEmpty ? nil : query
+        guard let url = components?.url else { throw ClientError.invalidURL }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.timeoutInterval = config.requestTimeout
+        req.addValue("application/json", forHTTPHeaderField: "Accept")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw ClientError.transport(error)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw ClientError.http(status: -1, body: nil)
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw ClientError.http(
+                status: http.statusCode,
+                body: String(data: data, encoding: .utf8)
+            )
+        }
+        do {
+            return try JSONDecoder().decode(Out.self, from: data)
+        } catch {
+            throw ClientError.decode(error)
+        }
+    }
+
+    /// JSON-bodied request with an explicit method (vote uses POST to add and
+    /// DELETE to remove, with the same payload).
+    private func sendJSON<Body: Encodable, Out: Decodable>(
+        method: String,
+        path: String,
+        body: Body,
+        as: Out.Type
+    ) async throws -> Out {
+        let endpoint = config.baseURL.appendingPathComponent(path)
+        var req = URLRequest(url: endpoint)
+        req.httpMethod = method
+        req.timeoutInterval = config.requestTimeout
+        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.addValue("application/json", forHTTPHeaderField: "Accept")
+        req.httpBody = try JSONEncoder().encode(body)
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw ClientError.transport(error)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw ClientError.http(status: -1, body: nil)
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw ClientError.http(
+                status: http.statusCode,
+                body: String(data: data, encoding: .utf8)
+            )
+        }
+        do {
+            return try JSONDecoder().decode(Out.self, from: data)
+        } catch {
+            throw ClientError.decode(error)
+        }
+    }
+
+    struct WishlistIdeasResponse: Decodable {
+        let ideas: [WishlistIdea]
+        let nextCursor: String?
+    }
+
+    func fetchWishlistIdeas(
+        flowSlug: String?,
+        status: String?,
+        sort: String,
+        cursor: String?,
+        limit: Int?,
+        userId: String?,
+        anonId: String?
+    ) async throws -> WishlistIdeasResponse {
+        var q: [URLQueryItem] = [
+            URLQueryItem(name: "appSlug", value: config.appSlug),
+            URLQueryItem(name: "sort", value: sort),
+        ]
+        if let flowSlug { q.append(URLQueryItem(name: "flowSlug", value: flowSlug)) }
+        if let status { q.append(URLQueryItem(name: "status", value: status)) }
+        if let cursor { q.append(URLQueryItem(name: "cursor", value: cursor)) }
+        if let limit { q.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if let userId { q.append(URLQueryItem(name: "userId", value: userId)) }
+        if let anonId { q.append(URLQueryItem(name: "anonId", value: anonId)) }
+        return try await getJSON(path: "api/public/wishlist/list", query: q, as: WishlistIdeasResponse.self)
+    }
+
+    struct SubmitIdeaRequest: Encodable {
+        let appSlug: String
+        let flowSlug: String?
+        let title: String
+        let body: String?
+        let category: String?
+        let email: String?
+        let displayName: String?
+        let userId: String?
+        let anonId: String?
+        let source: String
+    }
+    struct SubmitIdeaResponse: Decodable {
+        let ok: Bool
+        let pending: Bool
+        let idea: WishlistIdea
+    }
+
+    func submitWishlistIdea(
+        flowSlug: String?,
+        title: String,
+        body: String?,
+        category: String?,
+        email: String?,
+        displayName: String?,
+        userId: String?,
+        anonId: String?
+    ) async throws -> SubmitIdeaResponse {
+        try await postJSON(
+            path: "api/public/wishlist/submit",
+            body: SubmitIdeaRequest(
+                appSlug: config.appSlug,
+                flowSlug: flowSlug,
+                title: title,
+                body: body,
+                category: category,
+                email: email,
+                displayName: displayName,
+                userId: userId,
+                anonId: anonId,
+                source: "sdk"
+            ),
+            as: SubmitIdeaResponse.self
+        )
+    }
+
+    struct VoteRequest: Encodable {
+        let appSlug: String
+        let flowSlug: String?
+        let ideaId: String
+        let userId: String?
+        let anonId: String?
+        let email: String?
+    }
+    struct VoteResponse: Decodable {
+        let ok: Bool
+        let voted: Bool
+        let voteCount: Int
+    }
+
+    func voteWishlistIdea(
+        flowSlug: String?,
+        ideaId: String,
+        remove: Bool,
+        userId: String?,
+        anonId: String?,
+        email: String?
+    ) async throws -> VoteResponse {
+        try await sendJSON(
+            method: remove ? "DELETE" : "POST",
+            path: "api/public/wishlist/vote",
+            body: VoteRequest(
+                appSlug: config.appSlug,
+                flowSlug: flowSlug,
+                ideaId: ideaId,
+                userId: userId,
+                anonId: anonId,
+                email: email
+            ),
+            as: VoteResponse.self
+        )
+    }
+
+    struct WishlistCommentsResponse: Decodable {
+        let comments: [WishlistComment]
+        let nextCursor: String?
+    }
+
+    func fetchWishlistComments(
+        flowSlug: String?,
+        ideaId: String,
+        cursor: String?,
+        limit: Int?
+    ) async throws -> WishlistCommentsResponse {
+        var q: [URLQueryItem] = [
+            URLQueryItem(name: "appSlug", value: config.appSlug),
+            URLQueryItem(name: "ideaId", value: ideaId),
+        ]
+        if let flowSlug { q.append(URLQueryItem(name: "flowSlug", value: flowSlug)) }
+        if let cursor { q.append(URLQueryItem(name: "cursor", value: cursor)) }
+        if let limit { q.append(URLQueryItem(name: "limit", value: String(limit))) }
+        return try await getJSON(path: "api/public/wishlist/comments", query: q, as: WishlistCommentsResponse.self)
+    }
+
+    struct PostCommentRequest: Encodable {
+        let appSlug: String
+        let flowSlug: String?
+        let ideaId: String
+        let body: String
+        let email: String?
+        let displayName: String?
+        let userId: String?
+        let anonId: String?
+    }
+    struct PostCommentResponse: Decodable {
+        let ok: Bool
+        let comment: WishlistComment
+    }
+
+    func postWishlistComment(
+        flowSlug: String?,
+        ideaId: String,
+        body: String,
+        email: String?,
+        displayName: String?,
+        userId: String?,
+        anonId: String?
+    ) async throws -> PostCommentResponse {
+        try await postJSON(
+            path: "api/public/wishlist/comments",
+            body: PostCommentRequest(
+                appSlug: config.appSlug,
+                flowSlug: flowSlug,
+                ideaId: ideaId,
+                body: body,
+                email: email,
+                displayName: displayName,
+                userId: userId,
+                anonId: anonId
+            ),
+            as: PostCommentResponse.self
+        )
+    }
+
     struct ReferralRewardsRequest: Encodable {
         let appSlug: String
         let userId: String

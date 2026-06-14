@@ -256,9 +256,26 @@ extension RetentionFlow {
         }
     }
 
+    /// Present the **native** in-app feature-wishlist board as a sheet — the
+    /// drop-in equivalent of ``startCancelFlow(...)`` for wishlists. Use this
+    /// when you just want the board up from a button or menu and don't want to
+    /// place ``WishlistView`` in your own hierarchy.
+    ///
+    /// For an iOS app this is almost always what you want instead of linking
+    /// the hosted web board: it renders natively, votes/comments dedupe by
+    /// `userId`, and there's no Safari bounce.
+    ///
+    /// - Parameters:
+    ///   - userId: Stable user id for cross-device vote/comment dedup. Optional.
+    ///   - flowSlug: Target a non-primary wishlist flow. Omit for the default.
+    ///   - presenter: VC to present from. Defaults to the top-most VC.
     @MainActor
-    private static func presentWishlist(userId: String?, flowSlug: String?) {
-        guard let host = SafariPresenter.topViewController() else { return }
+    public static func presentWishlist(
+        userId: String? = nil,
+        flowSlug: String? = nil,
+        from presenter: UIViewController? = nil
+    ) {
+        guard let host = presenter ?? SafariPresenter.topViewController() else { return }
         let sheet = NavigationStack {
             WishlistView(userId: userId, flowSlug: flowSlug)
                 .toolbar {

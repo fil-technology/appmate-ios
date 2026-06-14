@@ -65,10 +65,16 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
 
-            // Drop-in native feature-request board. Present it however you like
-            // — here as a sheet; it also works pushed on a stack or in a tab.
-            // Pass your real user id for cross-device vote/comment dedup.
-            Button("Feature wishlist") { showWishlist = true }
+            // Native in-app feature-request board (NOT the web page). Easiest:
+            // one call presents it as a sheet.
+            Button("Feature wishlist (1 call)") {
+                RetentionFlow.presentWishlist(userId: "demo-user-1")
+            }
+            .buttonStyle(.borderedProminent)
+
+            // Or embed WishlistView yourself — works in a sheet, pushed on a
+            // stack, or in a tab. Pass your real user id for vote/comment dedup.
+            Button("Feature wishlist (embedded)") { showWishlist = true }
                 .buttonStyle(.bordered)
 
             // The shake menu can also be opened from a button — same items.

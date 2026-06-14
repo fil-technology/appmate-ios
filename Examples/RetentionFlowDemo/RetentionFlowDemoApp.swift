@@ -18,7 +18,21 @@ struct RetentionFlowDemoApp: App {
                 appSlug: "my-ios-app",
                 baseURL: URL(string: "https://cancel.appmate.cloud")!,
                 urlScheme: "myapp"
+                // webBaseURL: URL(string: "https://appmate.cloud")  // only if custom domains
             )
+        )
+
+        // Shake the device on ANY screen to bring up this menu. Configure once;
+        // list only the flows you want. Pass your real user id when you have one.
+        RetentionFlow.enableShakeMenu(
+            title: "Help us improve",
+            message: "Shake any time to reach us.",
+            userId: "demo-user-1",
+            items: [
+                .suggestFeature(),
+                .reportBug(),
+                .contact(),
+            ]
         )
     }
 
@@ -56,6 +70,14 @@ struct ContentView: View {
             // Pass your real user id for cross-device vote/comment dedup.
             Button("Feature wishlist") { showWishlist = true }
                 .buttonStyle(.bordered)
+
+            // The shake menu can also be opened from a button — same items.
+            Button("Open feedback menu") { RetentionFlow.presentMenu() }
+                .buttonStyle(.bordered)
+
+            Text("…or just shake the device.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .sheet(isPresented: $showWishlist) {

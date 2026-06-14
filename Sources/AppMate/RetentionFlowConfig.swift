@@ -18,6 +18,16 @@ public struct RetentionFlowConfig: Sendable {
     /// AppMate before parsing it.
     public let urlScheme: String
 
+    /// Root of the host that serves your *web* flow pages — contact, report,
+    /// feedback, the wishlist board, etc. (e.g. `https://appmate.cloud`).
+    ///
+    /// Only the shake "feedback menu" needs this, because those flows live on
+    /// the apex host rather than the cancel subdomain. Leave it `nil` and the
+    /// SDK derives it from ``baseURL`` by dropping a leading `cancel.` /
+    /// `flow.` / `signup.` label (so `https://cancel.appmate.cloud` →
+    /// `https://appmate.cloud`). Set it explicitly if you use custom domains.
+    public let webBaseURL: URL?
+
     /// Optional request timeout for the session bootstrap call.
     /// Defaults to 10 seconds.
     public let requestTimeout: TimeInterval
@@ -26,11 +36,13 @@ public struct RetentionFlowConfig: Sendable {
         appSlug: String,
         baseURL: URL,
         urlScheme: String,
+        webBaseURL: URL? = nil,
         requestTimeout: TimeInterval = 10
     ) {
         self.appSlug = appSlug
         self.baseURL = baseURL
         self.urlScheme = urlScheme
+        self.webBaseURL = webBaseURL
         self.requestTimeout = requestTimeout
     }
 }

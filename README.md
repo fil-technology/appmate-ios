@@ -18,12 +18,12 @@ In Xcode → **File → Add Package Dependencies…** → paste:
 https://github.com/fil-technology/appmate-ios
 ```
 
-Pin to `from: "0.8.0"`. Add the `AppMate` product to your app target.
+Pin to `from: "0.9.0"`. Add the `AppMate` product to your app target.
 
 Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.8.0")
+.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.9.0")
 ```
 
 ## Register your URL scheme

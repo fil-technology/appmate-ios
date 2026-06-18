@@ -267,6 +267,9 @@ struct SessionClient {
         let displayCode: String?
         let shareUrl: String
         let shareMessage: String?
+        // Generic reward the referrer earns per friend; `referrerWeeks` is the
+        // legacy field (0 for custom-unit programs).
+        let referrerReward: RewardPayload?
         let referrerWeeks: Int?
         let referrerLabel: String?
     }
@@ -289,7 +292,13 @@ struct SessionClient {
         let anonymousId: String?
     }
     struct RewardPayload: Decodable {
-        let weeks: Int
+        // Generic reward (current backends). `weeks` is the legacy field, still
+        // sent for week-denominated programs; both optional so decoding tolerates
+        // either an old or new backend.
+        let amount: Int?
+        let unit: String?
+        let unitPlural: String?
+        let weeks: Int?
         let label: String?
     }
     struct ReferralAttributeResponse: Decodable {
@@ -576,7 +585,11 @@ struct SessionClient {
         let userId: String
     }
     struct ReferralRewardsResponse: Decodable {
-        let weeksOwed: Int
+        // Generic: total amount owed + the per-friend reward (amount/unit).
+        let amountOwed: Int?
+        let reward: RewardPayload?
+        // Legacy field for week-denominated programs (0 for custom currencies).
+        let weeksOwed: Int?
         let newReferrals: Int
         let referrerWeeksEach: Int?
         let totalRewarded: Int?

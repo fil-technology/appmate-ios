@@ -3,11 +3,33 @@ import Foundation
 import UIKit
 #endif
 
-/// A reward returned by the referral APIs — a number of free weeks plus
-/// optional human copy ("Your free week is ready").
+/// A reward returned by the referral APIs — a generic `amount` of `unit` plus
+/// optional human copy ("Your 100 drops are ready").
+///
+/// `unit == "week"` is the conventional value mapped to trial time; any other
+/// value is an app-defined currency/credit (e.g. "drop", "gem") you grant by
+/// `amount`. Read `amount`/`unit` for custom currencies; `weeks` stays for
+/// week-denominated programs and existing call sites.
 public struct ReferralReward: Equatable, Sendable {
-    public let weeks: Int
+    /// Quantity granted, in `unit`.
+    public let amount: Int
+    /// Unit of the reward ("week" → trial time; otherwise a custom currency).
+    public let unit: String
+    /// Optional explicit plural of `unit` ("drops") for display copy.
+    public let unitPlural: String?
+    /// Optional human copy ("Your 100 drops are ready").
     public let label: String?
+
+    /// Back-compat: free weeks to grant. Equals `amount` for week-denominated
+    /// rewards and 0 for custom currencies (use `amount`/`unit` for those).
+    public var weeks: Int { unit == "week" ? amount : 0 }
+
+    public init(amount: Int, unit: String, unitPlural: String? = nil, label: String? = nil) {
+        self.amount = amount
+        self.unit = unit
+        self.unitPlural = unitPlural
+        self.label = label
+    }
 }
 
 /// Result of attributing a referred install on first launch.
@@ -20,10 +42,35 @@ public struct ReferralAttribution: Equatable, Sendable {
 
 /// Result of a referrer claiming owed rewards.
 public struct ReferralRewards: Equatable, Sendable {
-    /// Free weeks newly earned since the last check — grant this many.
-    public let weeks: Int
-    /// How many friends' installs those weeks represent.
+    /// Total amount newly earned since the last check, in `unit` — grant this.
+    public let amount: Int
+    /// Unit of the reward ("week" or a custom currency).
+    public let unit: String
+    /// How many friends' installs those rewards represent.
     public let newReferrals: Int
+
+    /// Back-compat: free weeks newly earned. Equals `amount` for week-
+    /// denominated rewards and 0 for custom currencies.
+    public var weeks: Int { unit == "week" ? amount : 0 }
+
+    public init(amount: Int, unit: String, newReferrals: Int) {
+        self.amount = amount
+        self.unit = unit
+        self.newReferrals = newReferrals
+    }
+}
+
+extension ReferralReward {
+    /// Map a decoded server reward payload, tolerating older backends that sent
+    /// only `weeks` (→ amount with unit "week").
+    init(_ payload: SessionClient.RewardPayload) {
+        self.init(
+            amount: payload.amount ?? payload.weeks ?? 0,
+            unit: payload.unit ?? "week",
+            unitPlural: payload.unitPlural,
+            label: payload.label
+        )
+    }
 }
 
 extension RetentionFlow {
@@ -88,13 +135,19 @@ extension RetentionFlow {
     /// given install is only ever returned once.
     public static func claimReferralRewards(userId: String) async -> ReferralRewards {
         guard let config = config else {
-            return ReferralRewards(weeks: 0, newReferrals: 0)
+            return ReferralRewards(amount: 0, unit: "week", newReferrals: 0)
         }
         let client = SessionClient(config: config)
         guard let resp = try? await client.referralRewards(userId: userId) else {
-            return ReferralRewards(weeks: 0, newReferrals: 0)
+            return ReferralRewards(amount: 0, unit: "week", newReferrals: 0)
         }
-        return ReferralRewards(weeks: resp.weeksOwed, newReferrals: resp.newReferrals)
+        // Prefer the generic amount/unit; fall back to the legacy weeks field
+        // for older backends.
+        return ReferralRewards(
+            amount: resp.amountOwed ?? resp.weeksOwed ?? 0,
+            unit: resp.reward?.unit ?? "week",
+            newReferrals: resp.newReferrals
+        )
     }
 
     /// Redeem a referral straight from an inbound deep-link URL — the installed-
@@ -163,9 +216,7 @@ extension RetentionFlow {
             anonymousId: anonymousId
         ) else { return nil }
 
-        let reward = resp.refereeReward.map {
-            ReferralReward(weeks: $0.weeks, label: $0.label)
-        }
+        let reward = resp.refereeReward.map { ReferralReward($0) }
         return ReferralAttribution(
             alreadyAttributed: resp.alreadyAttributed ?? false,
             refereeReward: reward
@@ -208,9 +259,7 @@ extension RetentionFlow {
         // Clear our token so a later launch doesn't re-attempt it.
         if pasteboard.string == text { pasteboard.string = "" }
 
-        let reward = resp.refereeReward.map {
-            ReferralReward(weeks: $0.weeks, label: $0.label)
-        }
+        let reward = resp.refereeReward.map { ReferralReward($0) }
         return ReferralAttribution(
             alreadyAttributed: resp.alreadyAttributed ?? false,
             refereeReward: reward

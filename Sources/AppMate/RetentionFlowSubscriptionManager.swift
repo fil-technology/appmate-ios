@@ -5,6 +5,9 @@ import StoreKit
 #if canImport(UIKit)
 import UIKit
 #endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// StoreKit 2 helper for opening the system "Manage Subscriptions" sheet.
 /// Falls back to opening the App Store subscriptions URL in Safari if the
@@ -22,11 +25,12 @@ public enum RetentionFlowSubscriptionManager {
     /// this falls back to opening the App Store URL in Safari.
     ///
     /// Always returns; never throws.
+    #if canImport(UIKit)
     @MainActor
     public static func presentManageSubscriptions(
         from scene: UIWindowScene? = nil
     ) async {
-        #if canImport(StoreKit) && canImport(UIKit)
+        #if canImport(StoreKit)
         let targetScene = scene ?? activeWindowScene()
         if let targetScene {
             do {
@@ -36,16 +40,25 @@ public enum RetentionFlowSubscriptionManager {
                 // Fall through to URL fallback.
             }
         }
-        await openFallbackURL()
-        #else
-        await openFallbackURL()
         #endif
+        await openFallbackURL()
     }
+    #else
+    /// (macOS / non-UIKit) Open the App Store subscriptions page. macOS has no
+    /// in-app StoreKit manage-subscriptions sheet, so this routes to the App
+    /// Store. Always returns; never throws.
+    @MainActor
+    public static func presentManageSubscriptions() async {
+        await openFallbackURL()
+    }
+    #endif
 
     @MainActor
     private static func openFallbackURL() async {
         #if canImport(UIKit)
         _ = await UIApplication.shared.open(appleSubscriptionsURL)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(appleSubscriptionsURL)
         #endif
     }
 

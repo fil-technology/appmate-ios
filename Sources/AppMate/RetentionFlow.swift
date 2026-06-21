@@ -141,6 +141,13 @@ public enum RetentionFlow {
             from: scene
         )
     }
+    #else
+    /// (macOS) Route the user to the App Store subscriptions page. macOS has no
+    /// in-app StoreKit manage-subscriptions sheet.
+    @MainActor
+    public static func presentManageSubscriptions() async {
+        await RetentionFlowSubscriptionManager.presentManageSubscriptions()
+    }
     #endif
 
     // MARK: Generic Safari-sheet presentation

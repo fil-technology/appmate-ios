@@ -1,12 +1,13 @@
-# AppMate — iOS SDK
+# AppMate — iOS & macOS SDK
 
-Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS apps. Opens the hosted cancel flow inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet.
+Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS and macOS apps. On iOS it opens hosted flows inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet. On macOS the cross-platform core works the same — referrals, onboarding claim, the wishlist API, and deep-link parsing — while in-app Safari presentation, the wishlist *view*, and shake-to-report stay iOS-only (present hosted flow URLs yourself, e.g. in the default browser).
 
-> **Status:** v0.7.0 — Swift Package with zero dependencies, supporting iOS 16+. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported via Safari view presentation, deferred-handoff claim, or custom deep link handling. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
+> **Status:** v0.7.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
 
 ## Requirements
 
-- iOS 16+ (needs StoreKit 2 `AppStore.showManageSubscriptions(in:)`)
+- **iOS 16+** — full feature set (StoreKit 2 `AppStore.showManageSubscriptions(in:)`, Safari-presented flows, the wishlist view, shake-to-report)
+- **macOS 13+** — cross-platform core: referrals, onboarding claim, wishlist API, deep-link parsing, App Store subscriptions fallback. In-app flow presentation + the wishlist view are iOS-only; on macOS, open hosted flow URLs yourself (e.g. `NSWorkspace.shared.open`) and handle the return deep link.
 - Swift 5.9+
 - Zero external dependencies
 

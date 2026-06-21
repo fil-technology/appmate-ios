@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS and macOS apps. On iOS it opens hosted flows inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet. On macOS the cross-platform core works the same — referrals, onboarding claim, the wishlist API, and deep-link parsing — while in-app Safari presentation, the wishlist *view*, and shake-to-report stay iOS-only (present hosted flow URLs yourself, e.g. in the default browser).
 
-> **Status:** v0.10.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
+> **Status:** v0.11.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
 
 ## Requirements
 
@@ -19,12 +19,12 @@ In Xcode → **File → Add Package Dependencies…** → paste:
 https://github.com/fil-technology/appmate-ios
 ```
 
-Pin to `from: "0.10.0"`. Add the `AppMate` product to your app target.
+Pin to `from: "0.11.0"`. Add the `AppMate` product to your app target.
 
 Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.10.0")
+.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.11.0")
 ```
 
 ## Register your URL scheme
@@ -224,6 +224,28 @@ if earned.weeks > 0 { FreeAccessManager.shared.grantReferralWeeks(earned.weeks) 
 > your scheme in the AppMate app settings and handle it with `.onOpenURL`.
 
 You get two redemption paths: the deferred clipboard handoff (`attributeReferral`, shows the iOS paste banner — call it at a natural first-launch moment) and the typed-code path (`redeemReferral(code:)`, no clipboard, no banner). `claimReferralRewards` returns each owed week exactly once (the server marks them claimed atomically) and respects the program's lifetime cap.
+
+## QR codes
+
+Every flow has a ready-made QR code — rounded style, your app's logo in the middle, auto-matched to the flow's colour scheme — that opens its public page when scanned. Three ways to present it, lowest to highest level:
+
+```swift
+// 1) A URL — hand to AsyncImage
+let url = RetentionFlow.qrCodeURL(for: .waitlist)
+
+// 2) A fetched image (UIImage on iOS, NSImage on macOS)
+if let img = await RetentionFlow.qrCode(for: .cancel, size: 600) { /* show img */ }
+
+// 3) A drop-in SwiftUI view — the simplest "Scan to …" surface
+RetentionFlowQRView(flow: .waitlist)
+    .frame(width: 220, height: 220)
+
+// Referral — encode a specific user's invite link:
+let code = await RetentionFlow.referralShareCode(userId: user.id)
+RetentionFlowQRView(flow: .referral, referralCode: code)
+```
+
+`QRFlow` covers every flow: `.cancel .waitlist .feedback .report .contact .onboarding .wishlist .link .referral`. Each method takes `theme: .auto | .light | .dark` (`.auto` matches the flow's colour scheme). It's a plain image fetch — works on **iOS and macOS**, no UIKit required.
 
 ## Demo app
 

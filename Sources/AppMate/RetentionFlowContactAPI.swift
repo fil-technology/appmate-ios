@@ -94,7 +94,7 @@ extension RetentionFlow {
         guard let config = config else { throw ContactError.notConfigured }
         var comps = URLComponents(
             url: config.baseURL.appendingPathComponent("api/public/contact"),
-            resolvingAgainstBaseURL: false,
+            resolvingAgainstBaseURL: false
         )
         var items = [URLQueryItem(name: "appSlug", value: config.appSlug)]
         if let flowSlug, !flowSlug.isEmpty {
@@ -163,7 +163,7 @@ extension RetentionFlow {
                 email: email?.isEmpty == false ? email : nil,
                 message: message?.isEmpty == false ? message : nil,
                 attributes: (fields?.isEmpty == false) ? fields : nil,
-                source: "sdk",
+                source: "sdk"
             ))
 
         let data: Data

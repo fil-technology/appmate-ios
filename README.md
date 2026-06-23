@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS and macOS apps. On iOS it opens hosted flows inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet. On macOS the cross-platform core works the same — referrals, onboarding claim, the wishlist API, and deep-link parsing — while in-app Safari presentation, the wishlist *view*, and shake-to-report stay iOS-only (present hosted flow URLs yourself, e.g. in the default browser).
 
-> **Status:** v0.11.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
+> **Status:** v0.12.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
 
 ## Requirements
 
@@ -19,12 +19,12 @@ In Xcode → **File → Add Package Dependencies…** → paste:
 https://github.com/fil-technology/appmate-ios
 ```
 
-Pin to `from: "0.11.0"`. Add the `AppMate` product to your app target.
+Pin to `from: "0.12.0"`. Add the `AppMate` product to your app target.
 
 Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.11.0")
+.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.12.0")
 ```
 
 ## Register your URL scheme
@@ -246,6 +246,24 @@ RetentionFlowQRView(flow: .referral, referralCode: code)
 ```
 
 `QRFlow` covers every flow: `.cancel .waitlist .feedback .report .contact .onboarding .wishlist .link .referral`. Each method takes `theme: .auto | .light | .dark` (`.auto` matches the flow's colour scheme). It's a plain image fetch — works on **iOS and macOS**, no UIKit required.
+
+## Native feedback form (iOS + macOS)
+
+Collect feedback with **native UI** instead of (or alongside) the hosted web page — a SwiftUI form that mirrors exactly what you configured in the dashboard: star rating, the message field, an optional reply-email, and any custom fields. Nothing the dashboard didn't enable is shown.
+
+```swift
+// One-call: sheet on iOS, window on macOS.
+RetentionFlow.presentFeedback(userId: user.id) { /* submitted */ }
+
+// Or embed the view anywhere — a tab, your own sheet, a navigation push:
+FeedbackView(userId: user.id) { dismiss() }
+
+// Or drive it yourself with the typed API (build any UI):
+let form = try await RetentionFlow.feedbackForm()   // published config + app brand
+try await RetentionFlow.submitFeedback(message: "Love it", rating: 5)
+```
+
+The hosted web flow still works (open the page in a Safari sheet) — this is an additive **native** path. iOS 16+ / macOS 13+. Other flows (report, contact, …) can follow the same pattern next.
 
 ## Demo app
 

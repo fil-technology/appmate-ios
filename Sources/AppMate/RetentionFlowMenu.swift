@@ -36,6 +36,7 @@ public struct RetentionFlowMenuItem: Identifiable {
 
     enum Action {
         case wishlist(flowSlug: String?)          // native WishlistView
+        case crash(flowSlug: String?)             // native CrashReportView
         case cancel                               // session bootstrap → Safari
         case web(WebFlow, flowSlug: String?)      // hosted page → Safari
         case custom(@MainActor () -> Void)        // host-provided escape hatch
@@ -79,6 +80,18 @@ extension RetentionFlowMenuItem {
     ) -> RetentionFlowMenuItem {
         .init(title: title, subtitle: subtitle, systemImage: systemImage,
               action: .web(.report, flowSlug: flowSlug))
+    }
+
+    /// Open the native crash-report form (device diagnostics attached, and a
+    /// crash captured by ``RetentionFlow/enableCrashDetection()`` pre-filled).
+    public static func reportCrash(
+        title: String = "Report a crash",
+        subtitle: String? = nil,
+        systemImage: String = "exclamationmark.triangle",
+        flowSlug: String? = nil
+    ) -> RetentionFlowMenuItem {
+        .init(title: title, subtitle: subtitle, systemImage: systemImage,
+              action: .crash(flowSlug: flowSlug))
     }
 
     /// Open the hosted contact / support form.
@@ -246,6 +259,8 @@ extension RetentionFlow {
         switch item.action {
         case .wishlist(let flowSlug):
             presentWishlist(userId: userId, flowSlug: flowSlug)
+        case .crash(let flowSlug):
+            presentCrashReport(userId: userId, flowSlug: flowSlug)
         case .cancel:
             startCancelFlow(userId: userId)
         case .web(let flow, let flowSlug):

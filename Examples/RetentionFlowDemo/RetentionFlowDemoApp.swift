@@ -22,6 +22,11 @@ struct RetentionFlowDemoApp: App {
             )
         )
 
+        // Best-effort crash capture: uncaught exceptions + fatal signals are
+        // stored locally and offered as a pre-filled report on next launch
+        // (see the .task below). Nothing uploads without the user submitting.
+        RetentionFlow.enableCrashDetection()
+
         // Shake the device on ANY screen to bring up this menu. Configure once;
         // list only the flows you want. Pass your real user id when you have one.
         RetentionFlow.enableShakeMenu(
@@ -31,6 +36,7 @@ struct RetentionFlowDemoApp: App {
             items: [
                 .suggestFeature(),
                 .reportBug(),
+                .reportCrash(),
                 .contact(),
             ]
         )
@@ -77,6 +83,13 @@ struct ContentView: View {
             Button("Feature wishlist (embedded)") { showWishlist = true }
                 .buttonStyle(.bordered)
 
+            // Native crash-report form — device diagnostics attach
+            // automatically; a captured crash (if any) pre-fills it.
+            Button("Report a crash") {
+                RetentionFlow.presentCrashReport(userId: "demo-user-1")
+            }
+            .buttonStyle(.bordered)
+
             // The shake menu can also be opened from a button — same items.
             Button("Open feedback menu") { RetentionFlow.presentMenu() }
                 .buttonStyle(.bordered)
@@ -97,6 +110,11 @@ struct ContentView: View {
             }
         }
         .task {
+            // Offer a captured crash from the previous run, if any. The form
+            // opens pre-filled and clears the capture after a submit.
+            if RetentionFlow.pendingCrash != nil {
+                RetentionFlow.presentCrashReport(userId: "demo-user-1")
+            }
             // Raw-data API example — build your own UI on top of these calls.
             if let page = try? await RetentionFlow.wishlistIdeas(sort: .votes) {
                 print("Top idea:", page.items.first?.title ?? "none")

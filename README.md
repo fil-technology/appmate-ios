@@ -275,6 +275,43 @@ try await RetentionFlow.submitContact(email: "me@example.com", message: "Hi!")
 
 Each accepts a `flowSlug:` to target a non-primary flow (omit for the primary). The hosted web flow still works (open the page in a Safari sheet) — these are additive **native** paths. iOS 16+ / macOS 13+.
 
+## Crash reports (iOS + macOS)
+
+Let users report a crash with a **native form** — device model, OS version, and app version/build attach automatically (with a visible summary + opt-out toggle in the form), and everything lands in the dashboard's crash inbox with a `new → reviewed → resolved` triage status.
+
+```swift
+// One-call: sheet on iOS, window on macOS.
+RetentionFlow.presentCrashReport(userId: user.id) { /* submitted */ }
+
+// Or embed the view:
+CrashReportView(userId: user.id) { dismiss() }
+
+// Or drive it yourself with the typed API:
+let form = try await RetentionFlow.crashReportForm()
+try await RetentionFlow.submitCrashReport(
+    message: "Crashed while exporting",
+    diagnostics: .current()          // device/OS/app snapshot (the default)
+)
+```
+
+### Detect crashes and offer a pre-filled report on next launch
+
+Best-effort capture of uncaught `NSException`s (name + reason + call stack) and fatal signals (`SIGSEGV` & friends — signal name only). The SDK never uploads anything by itself — the capture is stored locally and offered to *the user* on the next launch:
+
+```swift
+// At launch, right after RetentionFlow.configure(_:):
+RetentionFlow.enableCrashDetection()
+
+// Later (e.g. on your first screen's .task):
+if RetentionFlow.pendingCrash != nil {
+    RetentionFlow.presentCrashReport()      // banner + capture pre-filled
+    // …or decline it silently:
+    // RetentionFlow.clearPendingCrash()
+}
+```
+
+A submitted or cleared capture is removed; the shake menu can also carry a `.reportCrash()` item. This is a prompt-to-report aid, not a full crash reporter (no symbolication or mach-exception handling) — pair it with your usual crash tooling if you need that.
+
 ## Demo app
 
 `Examples/RetentionFlowDemo/` ships a 30-line SwiftUI app showing the integration. Open it from Xcode and edit `RetentionFlowDemoApp.swift` with your own `appSlug` / `baseURL` to test against your AppMate instance.

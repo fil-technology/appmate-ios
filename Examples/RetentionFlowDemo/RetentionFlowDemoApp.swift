@@ -84,9 +84,15 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
 
             // Native crash-report form — device diagnostics attach
-            // automatically; a captured crash (if any) pre-fills it.
+            // automatically; a captured crash (if any) pre-fills it. You can
+            // also attach small named text logs (console output, breadcrumbs).
             Button("Report a crash") {
-                RetentionFlow.presentCrashReport(userId: "demo-user-1")
+                RetentionFlow.presentCrashReport(
+                    userId: "demo-user-1",
+                    attachments: [
+                        CrashAttachment(name: "breadcrumbs", text: "opened export\ntapped share")
+                    ]
+                )
             }
             .buttonStyle(.bordered)
 

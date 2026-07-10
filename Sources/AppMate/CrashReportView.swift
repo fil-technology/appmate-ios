@@ -33,9 +33,12 @@ final class CrashReportStore: ObservableObject {
     let fromPendingCrash: Bool
 
     private let flowSlug: String?
+    /// Host-provided text logs attached to whatever the user submits.
+    private let attachments: [CrashAttachment]
 
-    init(flowSlug: String?) {
+    init(flowSlug: String?, attachments: [CrashAttachment] = []) {
         self.flowSlug = flowSlug
+        self.attachments = attachments
         if let pending = RetentionFlow.pendingCrash {
             diagnostics = pending
             fromPendingCrash = true
@@ -75,6 +78,7 @@ final class CrashReportStore: ObservableObject {
                 message: message.trimmingCharacters(in: .whitespacesAndNewlines),
                 email: cfg.emailField?.enabled == true ? email : nil,
                 diagnostics: includeDiagnostics ? diagnostics : nil,
+                attachments: attachments,
                 flowSlug: form?.flowSlug
             )
             if fromPendingCrash { RetentionFlow.clearPendingCrash() }
@@ -95,10 +99,12 @@ public struct CrashReportView: View {
     public init(
         userId: String? = nil,
         flowSlug: String? = nil,
+        attachments: [CrashAttachment] = [],
         onSubmitted: (() -> Void)? = nil
     ) {
         _ = userId
-        _store = StateObject(wrappedValue: CrashReportStore(flowSlug: flowSlug))
+        _store = StateObject(
+            wrappedValue: CrashReportStore(flowSlug: flowSlug, attachments: attachments))
         self.onSubmitted = onSubmitted
     }
 

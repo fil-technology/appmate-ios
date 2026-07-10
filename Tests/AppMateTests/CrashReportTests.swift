@@ -207,5 +207,52 @@ final class CrashReportTests: XCTestCase {
         // Optional fields that are nil must be omitted or null — either is
         // fine for the server; assert no bogus values leak in.
         XCTAssertNil(obj["email"] as? String)
+        // No attachments passed → key omitted entirely.
+        XCTAssertNil(obj["attachments"])
+    }
+
+    // MARK: Attachments
+
+    func testSubmitBodyEncodesAttachmentsAsNameContent() throws {
+        let body = RetentionFlow.SubmitCrashBody(
+            appSlug: "demo",
+            flowSlug: nil,
+            message: "froze",
+            email: nil,
+            source: "sdk",
+            diagnostics: .current(),
+            attachments: [
+                CrashAttachment(name: "console.log", text: "line 1\nline 2"),
+                CrashAttachment(name: "breadcrumbs", text: "tapped export"),
+                // Empty text must be dropped, not sent as an empty attachment.
+                CrashAttachment(name: "empty", text: ""),
+            ]
+        )
+        let data = try JSONEncoder().encode(body)
+        let obj = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let atts = try XCTUnwrap(obj["attachments"] as? [[String: Any]])
+        XCTAssertEqual(atts.count, 2, "empty-text attachment should be dropped")
+        XCTAssertEqual(atts[0]["name"] as? String, "console.log")
+        XCTAssertEqual(atts[0]["content"] as? String, "line 1\nline 2")
+        XCTAssertEqual(atts[1]["name"] as? String, "breadcrumbs")
+    }
+
+    func testAttachmentFromFileReadsAndTruncates() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("am-crash-att-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let url = dir.appendingPathComponent("app.log")
+        try String(repeating: "x", count: 5000).write(to: url, atomically: true, encoding: .utf8)
+
+        let att = try XCTUnwrap(CrashAttachment.file(named: "app.log", at: url, maxBytes: 1024))
+        XCTAssertEqual(att.name, "app.log")
+        XCTAssertEqual(att.text.count, 1024, "content should be truncated to maxBytes")
+
+        // Missing file → nil (so callers can compactMap).
+        XCTAssertNil(
+            CrashAttachment.file(named: "missing", at: dir.appendingPathComponent("nope.log")))
     }
 }

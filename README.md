@@ -294,6 +294,28 @@ try await RetentionFlow.submitCrashReport(
 )
 ```
 
+### Attach text logs
+
+Send small **named text logs** alongside a report — console output, breadcrumbs, a rolling log file. Text only, kept inline server-side (up to 5 attachments, 32 KB each) — no file-storage backend, so no screenshots or binaries.
+
+```swift
+try await RetentionFlow.submitCrashReport(
+    message: "Crashed on the export screen",
+    attachments: [
+        CrashAttachment(name: "breadcrumbs", text: recentEvents.joined(separator: "\n")),
+        // Read a small text log file (truncated to maxBytes; nil if missing):
+        CrashAttachment.file(named: "app.log", at: logFileURL),
+    ].compactMap { $0 }
+)
+
+// The native form forwards host-provided logs with whatever the user submits:
+RetentionFlow.presentCrashReport(attachments: [
+    CrashAttachment(name: "breadcrumbs", text: breadcrumbs),
+])
+```
+
+Attachments show as collapsible sections on each report in the dashboard and are included in the CSV export.
+
 ### Detect crashes and offer a pre-filled report on next launch
 
 Best-effort capture of uncaught `NSException`s (name + reason + call stack) and fatal signals (`SIGSEGV` & friends — signal name only). The SDK never uploads anything by itself — the capture is stored locally and offered to *the user* on the next launch:

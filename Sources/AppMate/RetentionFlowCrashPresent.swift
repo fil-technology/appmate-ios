@@ -23,12 +23,15 @@ extension RetentionFlow {
     public static func presentCrashReport(
         userId: String? = nil,
         flowSlug: String? = nil,
+        attachments: [CrashAttachment] = [],
         from presenter: UIViewController? = nil,
         onSubmitted: (() -> Void)? = nil
     ) {
         guard let host = presenter ?? SafariPresenter.topViewController() else { return }
         let sheet = NavigationStack {
-            CrashReportView(userId: userId, flowSlug: flowSlug, onSubmitted: onSubmitted)
+            CrashReportView(
+                userId: userId, flowSlug: flowSlug, attachments: attachments,
+                onSubmitted: onSubmitted)
                 .navigationTitle("Report a crash")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -56,9 +59,12 @@ extension RetentionFlow {
     public static func presentCrashReport(
         userId: String? = nil,
         flowSlug: String? = nil,
+        attachments: [CrashAttachment] = [],
         onSubmitted: (() -> Void)? = nil
     ) {
-        let view = CrashReportView(userId: userId, flowSlug: flowSlug, onSubmitted: onSubmitted)
+        let view = CrashReportView(
+            userId: userId, flowSlug: flowSlug, attachments: attachments,
+            onSubmitted: onSubmitted)
         let hosting = NSHostingController(rootView: view)
         let window = NSWindow(contentViewController: hosting)
         window.title = "Report a crash"

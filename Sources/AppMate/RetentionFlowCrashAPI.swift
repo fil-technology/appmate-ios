@@ -153,6 +153,42 @@ public struct CrashDiagnostics: Sendable {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Attachments — small NAMED TEXT logs sent alongside a crash report (console
+// output, breadcrumbs, a rolling log file, app-state dump). Text only, kept
+// small so it stays inline server-side — this is not a file-upload system.
+// The server clamps to 5 attachments, 32 KB each, 128 KB total.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct CrashAttachment: Sendable {
+    /// Short label shown in the dashboard (e.g. "console.log", "breadcrumbs").
+    public let name: String
+    /// The log text. Truncated to `maxBytes` when built from a file; the server
+    /// clamps again regardless.
+    public let text: String
+
+    public init(name: String, text: String) {
+        self.name = name
+        self.text = text
+    }
+
+    /// Build an attachment from a small text file (e.g. your app's rolling log).
+    /// Reads up to `maxBytes` of UTF-8 text; returns `nil` if the file is
+    /// missing, unreadable, or empty so callers can `compactMap` safely.
+    public static func file(
+        named name: String,
+        at url: URL,
+        maxBytes: Int = 32 * 1024
+    ) -> CrashAttachment? {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
+        let slice = data.count > maxBytes ? data.prefix(maxBytes) : data
+        guard let text = String(data: slice, encoding: .utf8), !text.isEmpty else {
+            return nil
+        }
+        return CrashAttachment(name: name, text: text)
+    }
+}
+
 extension RetentionFlow {
 
     private struct CrashConfigEnvelope: Decodable {
@@ -202,6 +238,11 @@ extension RetentionFlow {
         }
     }
 
+    struct WireAttachment: Encodable {
+        let name: String
+        let content: String
+    }
+
     struct SubmitCrashBody: Encodable {
         let appSlug: String
         let flowSlug: String?
@@ -218,6 +259,8 @@ extension RetentionFlow {
         let buildNumber: String?
         /// Epoch milliseconds — the server accepts ms or an ISO string.
         let crashedAt: Int?
+        /// Named text logs. Omitted from the JSON when empty.
+        let attachments: [WireAttachment]?
 
         init(
             appSlug: String,
@@ -225,7 +268,8 @@ extension RetentionFlow {
             message: String,
             email: String?,
             source: String,
-            diagnostics: CrashDiagnostics?
+            diagnostics: CrashDiagnostics?,
+            attachments: [CrashAttachment] = []
         ) {
             self.appSlug = appSlug
             self.flowSlug = flowSlug
@@ -243,17 +287,25 @@ extension RetentionFlow {
             self.crashedAt = diagnostics?.crashedAt.map {
                 Int($0.timeIntervalSince1970 * 1000)
             }
+            let wire = attachments
+                .filter { !$0.text.isEmpty }
+                .map { WireAttachment(name: $0.name, content: $0.text) }
+            self.attachments = wire.isEmpty ? nil : wire
         }
     }
 
     /// Submit a crash report. `message` is the user's description (required);
     /// `diagnostics` defaults to a fresh device/OS/app snapshot — pass
     /// ``RetentionFlow/pendingCrash`` to submit a captured crash, or `nil` to
-    /// send no diagnostics at all. Throws on validation/network failure.
+    /// send no diagnostics at all. `attachments` are small named text logs
+    /// (console output, breadcrumbs, a rolling log file — see
+    /// ``CrashAttachment``); the server keeps up to 5, 32 KB each. Throws on
+    /// validation/network failure.
     public static func submitCrashReport(
         message: String,
         email: String? = nil,
         diagnostics: CrashDiagnostics? = .current(),
+        attachments: [CrashAttachment] = [],
         flowSlug: String? = nil
     ) async throws {
         guard let config = config else { throw CrashReportError.notConfigured }
@@ -272,7 +324,8 @@ extension RetentionFlow {
                 // A report that carries a captured exception came from the
                 // monitor; plain reports are user-initiated.
                 source: diagnostics?.exceptionName != nil ? "sdk_auto" : "sdk",
-                diagnostics: diagnostics
+                diagnostics: diagnostics,
+                attachments: attachments
             ))
 
         let data: Data

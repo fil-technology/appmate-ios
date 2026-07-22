@@ -247,6 +247,42 @@ RetentionFlowQRView(flow: .referral, referralCode: code)
 
 `QRFlow` covers every flow: `.cancel .waitlist .feedback .report .contact .onboarding .wishlist .link .referral`. Each method takes `theme: .auto | .light | .dark` (`.auto` matches the flow's colour scheme). It's a plain image fetch — works on **iOS and macOS**, no UIKit required.
 
+## Short links (iOS + macOS)
+
+Short links — `go.appmate.cloud/{code}` — are created in the dashboard or over
+the API, not from the SDK: creating one needs an admin token, which has no
+business shipping inside your app. **There is no SDK API to add here, and that's
+deliberate.** What the SDK does give you is the landing half.
+
+A short link can point at **your app's own URL scheme**, so the same link that
+sends a stranger to the App Store opens the app directly for someone who already
+has it installed:
+
+| Visitor | Destination you configure |
+| --- | --- |
+| iPhone / iPad | `https://apps.apple.com/…` — or `myapp://promo` to deep-link straight in |
+| Android | `https://play.google.com/…` |
+| Everyone else | your website |
+
+When the destination is your scheme, the link arrives through the same entry
+point as any other deep link, so nothing new is needed:
+
+```swift
+// SwiftUI
+.onOpenURL { url in
+    RetentionFlow.handleDeepLink(url)   // already handles go.* → myapp:// arrivals
+}
+```
+
+Because the redirect is server-side, you can **repoint a printed QR code or a
+link in someone's bio without shipping an app update** — and the click shows up
+in that link's analytics either way.
+
+> **Not yet:** deferred attribution (tapping a short link → App Store → install →
+> the app knowing which campaign brought them) is *not* implemented for short
+> links. Referral and onboarding have their own handoff mechanisms for this;
+> short links currently only attribute the click, not the resulting install.
+
 ## Native forms — feedback, report & contact (iOS + macOS)
 
 Collect **feedback**, **reports**, and **contact** messages with **native UI** instead of (or alongside) the hosted web page — SwiftUI forms that mirror exactly what you configured in the dashboard. Each renders only what you enabled: feedback shows the star rating / message / optional reply-email / custom fields; report shows your category picker + message + optional email; contact shows the name / email / message fields you turned on, plus any custom fields. Nothing the dashboard didn't enable is shown.

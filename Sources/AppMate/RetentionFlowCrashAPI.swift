@@ -372,4 +372,82 @@ extension RetentionFlow {
     public static func clearPendingCrash() {
         CrashMonitor.clear()
     }
+
+    // MARK: System crash reports (macOS)
+
+    /// The OS-written crash report for THIS app's most recent crash, as an
+    /// attachment ready to send — or nil if there isn't one we can read.
+    ///
+    /// On macOS this reads the app's own newest `.ips`/`.crash` from
+    /// `~/Library/Logs/DiagnosticReports/`. That report is far richer than the
+    /// in-process backtrace in ``pendingCrash`` — it carries the exception
+    /// type, termination reason, every thread, register state, and the binary
+    /// images needed to symbolicate. On every other platform this returns nil.
+    ///
+    /// > Privacy: a system crash report contains absolute file paths (which
+    /// > include the Mac's user name) and the app's loaded-library map. It's
+    /// > more than the plain backtrace, so only attach it when that's a
+    /// > trade-off you want.
+    ///
+    /// Reports older than a week are ignored, and a report is only returned
+    /// once — a second call (or a later launch) won't hand back one already
+    /// consumed, so this is safe to attach unconditionally.
+    public static func latestSystemCrashReport() -> CrashAttachment? {
+        #if os(macOS)
+        guard let report = CrashReportHarvester.unsentReport() else { return nil }
+        return CrashAttachment(name: report.name, text: report.text)
+        #else
+        return nil
+        #endif
+    }
+
+    /// Silently report a crash captured on the previous run — no form, no user
+    /// interaction. Call once at launch, right after ``enableCrashDetection()``:
+    ///
+    ///     RetentionFlow.enableCrashDetection()
+    ///     Task { await RetentionFlow.reportPendingCrash() }
+    ///
+    /// It submits when there's a captured crash from ``pendingCrash`` OR (on
+    /// macOS, when `includeSystemReport` is true) an unsent OS crash report —
+    /// whichever exists, preferring to send both together. On success the
+    /// pending record is cleared so it isn't sent twice. Returns whether
+    /// anything was sent. Never throws: a background auto-report shouldn't be
+    /// able to break app launch, so transport failures resolve to `false` and
+    /// leave the pending record in place for a later retry.
+    ///
+    /// - Parameters:
+    ///   - message: stored as the report body. The default marks it as
+    ///     automatic so these are distinguishable from user-written reports.
+    ///   - includeSystemReport: macOS only — also attach the OS crash report
+    ///     (see ``latestSystemCrashReport()`` for the privacy note). Ignored
+    ///     elsewhere.
+    @discardableResult
+    public static func reportPendingCrash(
+        message: String = "Automatically reported crash.",
+        includeSystemReport: Bool = true
+    ) async -> Bool {
+        let pending = pendingCrash
+        let systemReport = includeSystemReport ? latestSystemCrashReport() : nil
+
+        // Nothing captured and no OS report → nothing to do.
+        guard pending != nil || systemReport != nil else { return false }
+
+        do {
+            try await submitCrashReport(
+                message: message,
+                // A pending record carries the exception so `source` becomes
+                // sdk_auto; a system-report-only send still reads as automatic.
+                diagnostics: pending ?? .current(),
+                attachments: systemReport.map { [$0] } ?? []
+            )
+            if pending != nil { clearPendingCrash() }
+            return true
+        } catch {
+            // Leave pendingCrash intact so the next launch can retry. Note the
+            // system report was already marked consumed by unsentReport(); a
+            // retry sends the pending backtrace without it, which is acceptable
+            // — re-reading a possibly-rotated .ips isn't worth the complexity.
+            return false
+        }
+    }
 }

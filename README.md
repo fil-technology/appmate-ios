@@ -2,7 +2,7 @@
 
 Swift Package that integrates the [AppMate](https://github.com/fil-technology/appmate) self-hosted retention platform into iOS and macOS apps. On iOS it opens hosted flows inside an `SFSafariViewController`, parses the return deep link, and helps you present Apple's native manage-subscriptions sheet. On macOS the cross-platform core works the same — referrals, onboarding claim, the wishlist API, and deep-link parsing — while in-app Safari presentation, the wishlist *view*, and shake-to-report stay iOS-only (present hosted flow URLs yourself, e.g. in the default browser).
 
-> **Status:** v0.14.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, crash, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
+> **Status:** v0.16.0 — Swift Package with zero dependencies, supporting **iOS 16+ and macOS 13+**. cancel, waitlist, feedback, report, contact, crash, onboarding (web-to-app funnel), and referral flows are fully supported on **iOS** via Safari view presentation, deferred-handoff claim, or custom deep link handling. On **macOS** the cross-platform layer is available — referral (share link/code, reward claiming, `redeemReferral`/`redeemReferralFromURL`), onboarding claim, the wishlist API, deep-link parsing, and the App Store subscriptions fallback; in-app flow presentation and the wishlist view remain iOS-only. Referral supports the deferred clipboard handoff, a typed short code (`redeemReferral(code:)`), an installed-app deep-link fast path (`redeemReferralFromURL(_:)`), and surfacing the referrer's own shareable code (`referralShareCode(userId:)`).
 
 ## Requirements
 
@@ -19,12 +19,12 @@ In Xcode → **File → Add Package Dependencies…** → paste:
 https://github.com/fil-technology/appmate-ios
 ```
 
-Pin to `from: "0.14.0"`. Add the `AppMate` product to your app target.
+Pin to `from: "0.16.0"`. Add the `AppMate` product to your app target.
 
 Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.14.0")
+.package(url: "https://github.com/fil-technology/appmate-ios", from: "0.16.0")
 ```
 
 ## Register your URL scheme
@@ -332,9 +332,6 @@ try await RetentionFlow.submitCrashReport(
 
 ### Attach text logs
 
-> Requires **v0.15.0** — attachments landed after the 0.14.0 tag. Pin
-> `from: "0.15.0"` (or `branch: "main"`) to use `CrashAttachment`.
-
 Send small **named text logs** alongside a report — console output, breadcrumbs, a rolling log file. Text only, kept inline server-side (up to 5 attachments, 32 KB each) — no file-storage backend, so no screenshots or binaries.
 
 ```swift
@@ -372,6 +369,30 @@ if RetentionFlow.pendingCrash != nil {
 ```
 
 A submitted or cleared capture is removed; the shake menu can also carry a `.reportCrash()` item. This is a prompt-to-report aid, not a full crash reporter (no symbolication or mach-exception handling) — pair it with your usual crash tooling if you need that.
+
+### Silent auto-report + the real macOS crash report
+
+> Requires **v0.16.0**.
+
+Don't want to prompt the user? `reportPendingCrash()` sends the captured crash on the next launch with **no form and no interaction**. On macOS it also attaches the OS-written crash report — the rich `.ips` from `~/Library/Logs/DiagnosticReports/` with the exception type, every thread, register state, and binary images — which is far more diagnosable than the in-process backtrace.
+
+```swift
+// At launch, right after RetentionFlow.configure(_:):
+RetentionFlow.enableCrashDetection()
+
+// Fire-and-forget: sends last run's crash (if any), attaching the macOS
+// system report when one is available. Never throws; returns whether it sent.
+Task { await RetentionFlow.reportPendingCrash() }
+```
+
+It only ever reads **your own app's** reports, only sends a given report **once**, and ignores anything older than a week. To attach the system report to a *user-facing* form instead of sending silently, grab it yourself:
+
+```swift
+let attachments = [RetentionFlow.latestSystemCrashReport()].compactMap { $0 }
+RetentionFlow.presentCrashReport(attachments: attachments)
+```
+
+> **Privacy:** a macOS `.ips` contains absolute file paths (which include the Mac's user name) and the loaded-library map — more than the plain backtrace. `reportPendingCrash(includeSystemReport: false)` sends only the in-process capture if you'd rather not include it. The report is trimmed to ~30 KB (the crashed thread and exception summary are kept; the binary-image list is dropped when over budget).
 
 ## Demo app
 
